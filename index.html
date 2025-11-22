@@ -5,14 +5,17 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>MCT — Analizador de Nocturnidad</title>
 
-<!-- pdf.js desde CDN -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.10.141/pdf.min.js"></script>
+<!-- NOTE: pdf.js must be placed in ./pdfjs/pdf.js and ./pdfjs/pdf.worker.js -->
+<script src="./pdfjs/pdf.js"></script>
 <script>
-  pdfjsLib.GlobalWorkerOptions.workerSrc =
-    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.10.141/pdf.worker.min.js";
+  if (window.pdfjsLib) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "./pdfjs/pdf.worker.js";
+  } else {
+    console.warn("pdf.js not loaded. Ensure ./pdfjs/pdf.js is present.");
+  }
 </script>
 
-<!-- jsPDF + autotable para exportar PDF final -->
+<!-- jsPDF + autotable for export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
@@ -23,101 +26,27 @@
     --accent: #2563eb;
     --muted: #64748b;
   }
-  body {
-    font-family: 'Inter', system-ui, sans-serif;
-    background: var(--bg);
-    margin: 0;
-    padding: 20px;
-    color: #0f172a;
-  }
+  body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #0f172a; }
   .wrap { max-width: 960px; margin: 0 auto; }
   header { margin-bottom: 16px; }
   h1 { margin: 0; font-size: 28px; font-weight: 700; color: #1e293b; }
   .subtitle { margin-top: 4px; font-size: 14px; color: var(--muted); }
-  .instructions {
-    background: var(--card);
-    border: 1px solid #e2e8f0;
-    padding: 12px;
-    border-radius: 8px;
-    font-size: 14px;
-    margin-top: 12px;
-    color: #334155;
-  }
+  .instructions { background: var(--card); border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; font-size: 14px; margin-top: 12px; color: #334155; }
   .controls { margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap; }
-  .btn {
-    background: var(--accent);
-    color: white;
-    border: none;
-    padding: 10px 15px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 14px;
-  }
+  .btn { background: var(--accent); color: white; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-size: 14px; }
   .btn:disabled { opacity: 0.5; }
-  #dropZone {
-    margin-top: 16px;
-    padding: 20px;
-    border: 2px dashed #cbd5e1;
-    border-radius: 8px;
-    text-align: center;
-    background: var(--card);
-    color: var(--muted);
-  }
-  #log {
-    margin-top: 14px;
-    background: var(--card);
-    padding: 10px;
-    border-radius: 8px;
-    border: 1px solid #e2e8f0;
-    font-family: monospace;
-    font-size: 12px;
-    max-height: 180px;
-    overflow-y: auto;
-  }
-  #progress {
-    height: 10px;
-    background: #e2e8f0;
-    margin-top: 10px;
-    border-radius: 999px;
-    overflow: hidden;
-    display:none;
-  }
-  #progressBar {
-    height: 100%;
-    width: 0%;
-    background: linear-gradient(90deg, #60a5fa, #0ea5e9);
-  }
-  .month-block {
-    background: var(--card);
-    margin-top: 16px;
-    padding: 14px;
-    border-radius: 8px;
-    border: 1px solid #e2e8f0;
-  }
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 10px;
-    font-size: 13px;
-  }
-  th, td {
-    border-bottom: 1px solid #e2e8f0;
-    padding: 6px;
-    text-align: left;
-  }
-  footer {
-    margin-top: 20px;
-    text-align: center;
-    font-size: 13px;
-    color: var(--muted);
-    padding-bottom: 30px;
-  }
+  #dropZone { margin-top: 16px; padding: 20px; border: 2px dashed #cbd5e1; border-radius: 8px; text-align: center; background: var(--card); color: var(--muted); }
+  #log { margin-top: 14px; background: var(--card); padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; font-family: monospace; font-size: 12px; max-height: 180px; overflow-y: auto; }
+  #progress { height: 10px; background: #e2e8f0; margin-top: 10px; border-radius: 999px; overflow: hidden; display:none; }
+  #progressBar { height: 100%; width: 0%; background: linear-gradient(90deg, #60a5fa, #0ea5e9); }
+  .month-block { background: var(--card); margin-top: 16px; padding: 14px; border-radius: 8px; border: 1px solid #e2e8f0; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+  th, td { border-bottom: 1px solid #e2e8f0; padding: 6px; text-align: left; }
+  footer { margin-top: 20px; text-align: center; font-size: 13px; color: var(--muted); padding-bottom: 30px; }
 </style>
 </head>
-
 <body>
 <div class="wrap">
-
 <header>
   <h1>MCT — Analizador de Nocturnidad</h1>
   <div class="subtitle">Herramienta sencilla para calcular nocturnidad en PDFs</div>
@@ -152,14 +81,14 @@
 <footer>
   © MCT — Herramienta de análisis horario
 </footer>
-
 </div>
 
 <script>
-/* -----------------------------
-   Funciones del analizador
-   ----------------------------- */
+/* Simple analyzer (no OCR). Uses local pdf.js (./pdfjs/pdf.js) to extract text.
+   Make sure to place pdf.js and pdf.worker.js inside ./pdfjs/ before deploying.
+*/
 
+/* Utilities */
 function pad2(n){ return n.toString().padStart(2,'0'); }
 function timeToMinutes(t){ const [h,m]=t.split(':').map(Number); return h*60+m; }
 function minutesToHHMM(min){ return pad2(Math.floor(min/60))+":"+pad2(min%60); }
@@ -178,6 +107,7 @@ function tariffForDate(y,m,d){
   return 0;
 }
 
+/* Extract text (pdf.js local) */
 async function extractTextFromPDF(file){
   const buf = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({data:buf}).promise;
@@ -185,280 +115,181 @@ async function extractTextFromPDF(file){
   for(let i=1;i<=pdf.numPages;i++){
     const page = await pdf.getPage(i);
     const ct = await page.getTextContent();
-    full += "\n" + ct.items.map(t=>t.str).join(" ");
+    full += "\\n" + ct.items.map(t=>t.str).join(" ");
   }
   return full;
 }
 
+/* Parsing and analysis (simple rules) */
 function parseAndAnalyzeText(text){
-  const tokens = text.split(/\s+/).filter(Boolean);
+  const tokens = text.split(/\\s+/).filter(Boolean);
   const entries = [];
   let curr = null;
 
-  /* Parse fechas y horas */
   for(const raw of tokens){
-    const t = raw.replace(/[\u200B-\u200F\uFEFF]/g,'');
-    if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(t)){
+    const t = raw.replace(/[\\u200B-\\u200F\\uFEFF]/g,'');
+    if(/^\\d{1,2}\\/\\d{1,2}\\/\\d{4}$/.test(t)){
       const [dd,mm,yy] = t.split('/').map(Number);
-      curr = {dd,mm: mm, yyyy: yy, dateStr: t, times:[]};
+      curr = {dd,mm:mm,yyyy:yy,dateStr:t,times:[]};
       entries.push(curr);
       continue;
     }
-    if(/^([01]?\d|2[0-3]):[0-5]\d$/.test(t)){
+    if(/^([01]?\\d|2[0-3]):[0-5]\\d$/.test(t)){
       if(curr) curr.times.push(t);
       continue;
     }
-    if(/^\d{3,4}$/.test(t)){
-      const s = t.padStart(4,'0');
-      const hh = Number(s.slice(0,2));
-      const mm = Number(s.slice(2,4));
+    if(/^\\d{3,4}$/.test(t)){
+      const s = t.padStart(4,'0'); const hh = Number(s.slice(0,2)); const mm = Number(s.slice(2,4));
       if(hh<=23 && mm<=59) curr?.times.push(pad2(hh)+":"+pad2(mm));
     }
   }
 
   const rows = [];
-
-  /* Excepción marzo 2022 */
   for(const ent of entries){
     if(ent.yyyy===2022 && ent.mm===3 && !(ent.dd===30 || ent.dd===31)) continue;
-
     const t = ent.times;
     for(let i=0;i+1<t.length;i+=2){
-      let s = timeToMinutes(t[i]);
-      let e = timeToMinutes(t[i+1]);
+      let s = timeToMinutes(t[i]); let e = timeToMinutes(t[i+1]);
       if(e < s) e += 1440;
-
       let noct = 0;
       for(const w of windowsShifted){
         noct += Math.max(0, Math.min(e, w.end) - Math.max(s, w.start));
       }
-
       if(noct>0){
         const tarif = tariffForDate(ent.yyyy,ent.mm,ent.dd);
-        rows.push({
-          yyyy:ent.yyyy, mm:ent.mm, dd:ent.dd,
-          date: ent.dateStr,
-          start:t[i], end:t[i+1],
-          noct: noct,
-          tariff: tarif,
-          amount: +(noct*tarif).toFixed(2)
-        });
+        rows.push({ yyyy:ent.yyyy, mm:ent.mm, dd:ent.dd, date:ent.dateStr, start:t[i], end:t[i+1], noct:noct, tariff:tarif, amount:+(noct*tarif).toFixed(2) });
       }
     }
   }
   return rows;
 }
 
-/* Consolidar meses */
+/* Group by month */
 function groupByMonth(rows){
   const map = {};
-  for(const r of rows){
-    const key = `${r.yyyy}-${pad2(r.mm)}`;
-    (map[key] ??= []).push(r);
-  }
+  for(const r of rows){ const key = `${r.yyyy}-${pad2(r.mm)}`; (map[key] ??= []).push(r); }
   const months = [];
   for(const k in map){
     const [yyyy,mm] = k.split('-').map(Number);
     const list = map[k];
-    const totalMin = list.reduce((s,r)=>s+r.noct,0);
-    const totalAmt = list.reduce((s,r)=>s+r.amount,0);
-    months.push({yyyy, mm, rows:list, totalMin, totalAmt});
+    const totalMin = list.reduce((s,x)=>s+x.noct,0);
+    const totalAmt = list.reduce((s,x)=>s+x.amount,0);
+    months.push({ key:k, yyyy, mm, rows:list.sort((a,b)=>a.dd-b.dd), totalMin, totalAmt });
   }
-  months.sort((a,b)=> (a.yyyy*100+a.mm)-(b.yyyy*100+b.mm));
+  months.sort((a,b)=> (a.yyyy*100+a.mm) - (b.yyyy*100+b.mm));
   return months;
 }
 
-/* UI  */
-const fileInput = document.getElementById("fileInput");
-const processBtn = document.getElementById("processBtn");
-const downloadCsvBtn = document.getElementById("downloadCsvBtn");
-const downloadPdfBtn = document.getElementById("downloadPdfBtn");
-const clearBtn = document.getElementById("clearBtn");
-const dropZone = document.getElementById("dropZone");
-const logEl = document.getElementById("log");
-const resultsEl = document.getElementById("results");
-const progressBar = document.getElementById("progressBar");
-const progressDiv = document.getElementById("progress");
-const progressText = document.getElementById("progressText");
+/* UI elements */
+const fileInput = document.getElementById('fileInput');
+const processBtn = document.getElementById('processBtn');
+const downloadCsvBtn = document.getElementById('downloadCsvBtn');
+const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+const clearBtn = document.getElementById('clearBtn');
+const dropZone = document.getElementById('dropZone');
+const logEl = document.getElementById('log');
+const resultsEl = document.getElementById('results');
+const progressBar = document.getElementById('progressBar');
+const progressDiv = document.getElementById('progress');
+const progressText = document.getElementById('progressText');
 
 let globalData = null;
 
-function log(t){
-  logEl.textContent += t + "\n";
-  logEl.scrollTop = logEl.scrollHeight;
-}
+function log(msg){ logEl.textContent += msg + "\\n"; logEl.scrollTop = logEl.scrollHeight; }
 
-dropZone.addEventListener("dragover", ev=>{ev.preventDefault(); dropZone.style.background="#fff";});
-dropZone.addEventListener("dragleave", ()=> dropZone.style.background="");
-dropZone.addEventListener("drop", ev=>{
-  ev.preventDefault();
-  dropZone.style.background="";
-  const dt = new DataTransfer();
-  for(const f of ev.dataTransfer.files) dt.items.add(f);
-  fileInput.files = dt.files;
+/* Drag & drop */
+dropZone.addEventListener('dragover', ev=>{ ev.preventDefault(); dropZone.style.background="#fff"; });
+dropZone.addEventListener('dragleave', ()=> dropZone.style.background="");
+dropZone.addEventListener('drop', ev=>{ ev.preventDefault(); dropZone.style.background=""; const dt = new DataTransfer(); for(const f of ev.dataTransfer.files) dt.items.add(f); fileInput.files = dt.files; });
+
+/* Process button */
+processBtn.addEventListener('click', async ()=>{
+  const files = Array.from(fileInput.files || []);
+  if(files.length===0){ log('No hay archivos seleccionados.'); return; }
+  resultsEl.innerHTML=''; logEl.textContent=''; progressDiv.style.display='block';
+  let allRows = [];
+  for(let i=0;i<files.length;i++){
+    progressBar.style.width = Math.round((i/files.length)*100) + '%';
+    progressText.textContent = `Leyendo ${files[i].name} (${i+1}/${files.length})`;
+    log('Extrayendo texto de ' + files[i].name + ' ...');
+    try{
+      const text = await extractTextFromPDF(files[i]);
+      const rows = parseAndAnalyzeText(text);
+      log('→ ' + rows.length + ' registros encontrados');
+      allRows.push(...rows);
+    }catch(e){
+      console.error(e);
+      log('Error extrayendo ' + files[i].name + ': ' + (e.message||e));
+    }
+  }
+  globalData = groupByMonth(allRows);
+  progressBar.style.width = '100%';
+  progressText.textContent = 'Completado';
+  renderResults(globalData);
+  downloadCsvBtn.disabled = false;
+  downloadPdfBtn.disabled = false;
 });
 
-/* Procesar */
-processBtn.onclick = async ()=>{
-  const files = [...fileInput.files];
-  if(files.length===0){ log("No has seleccionado archivos."); return; }
-
-  resultsEl.innerHTML="";
-  logEl.textContent="";
-  progressDiv.style.display="block";
-
-  let allRows = [];
-
-  for(let i=0;i<files.length;i++){
-    progressBar.style.width = ((i/files.length)*100)+"%";
-    progressText.textContent = `Leyendo ${files[i].name} (${i+1}/${files.length})`;
-    log("Extrayendo texto de "+files[i].name+" ...");
-    const text = await extractTextFromPDF(files[i]);
-    const rows = parseAndAnalyzeText(text);
-    log("→ "+rows.length+" registros encontrados");
-    allRows.push(...rows);
-  }
-
-  globalData = groupByMonth(allRows);
-  progressBar.style.width="100%";
-  progressText.textContent="Completado";
-
-  renderResults(globalData);
-  downloadCsvBtn.disabled=false;
-  downloadPdfBtn.disabled=false;
-};
-
-/* Render de resultados */
+/* Render results */
 function renderResults(months){
-  resultsEl.innerHTML="";
-  if(months.length===0){
-    resultsEl.innerHTML="<div>No se encontraron minutos nocturnos.</div>";
-    return;
-  }
+  resultsEl.innerHTML = '';
+  if(!months || months.length===0){ resultsEl.innerHTML = '<div>No se encontraron minutos nocturnos.</div>'; return; }
   for(const m of months){
-    const div = document.createElement("div");
-    div.className = "month-block";
+    const div = document.createElement('div'); div.className='month-block';
     const dt = new Date(m.yyyy, m.mm-1, 1);
     div.innerHTML = `<h3>${dt.toLocaleString('es-ES',{month:'long',year:'numeric'})}</h3>`;
-    const table = document.createElement("table");
-    table.innerHTML = `
-      <thead><tr>
-      <th>Fecha</th><th>Inicio</th><th>Fin</th><th>Min</th><th>Tarifa</th><th>Importe</th>
-      </tr></thead>
-    `;
-    const tbody = document.createElement("tbody");
-    m.rows.sort((a,b)=>a.dd-b.dd);
+    const table = document.createElement('table');
+    table.innerHTML = '<thead><tr><th>Fecha</th><th>Inicio</th><th>Fin</th><th>Min</th><th>Tarifa</th><th>Importe</th></tr></thead>';
+    const tbody = document.createElement('tbody');
     for(const r of m.rows){
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${r.date}</td>
-        <td>${r.start}</td>
-        <td>${r.end}</td>
-        <td>${r.noct}</td>
-        <td>${r.tariff ? r.tariff.toFixed(3) : ''}</td>
-        <td>${r.amount.toFixed(2)}</td>
-      `;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${r.date}</td><td>${r.start}</td><td>${r.end}</td><td>${r.noct}</td><td>${r.tariff? r.tariff.toFixed(3): ''}</td><td>${r.amount.toFixed(2)}</td>`;
       tbody.appendChild(tr);
     }
-    table.appendChild(tbody);
-    div.appendChild(table);
-    div.innerHTML += `
-      <div style="margin-top:8px;font-size:13px;color:#334155">
-      Total: <strong>${m.totalMin} min</strong>
-      — (<strong>${minutesToHHMM(m.totalMin)}</strong>)
-      — € <strong>${m.totalAmt.toFixed(2)}</strong>
-      </div>
-    `;
+    table.appendChild(tbody); div.appendChild(table);
+    div.innerHTML += `<div style="margin-top:8px;font-size:13px;color:#334155">Total: <strong>${m.totalMin} min</strong> — (<strong>${minutesToHHMM(m.totalMin)}</strong>) — € <strong>${m.totalAmt.toFixed(2)}</strong></div>`;
     resultsEl.appendChild(div);
   }
-
-  const gdiv = document.createElement("div");
-  gdiv.className = "month-block";
-  const totalMin = months.reduce((s,m)=>s+m.totalMin,0);
-  const totalAmt = months.reduce((s,m)=>s+m.totalAmt,0);
-  gdiv.innerHTML = `
-    <h3>Resumen global</h3>
-    <div>Total minutos: <strong>${totalMin}</strong>
-    — (<strong>${minutesToHHMM(totalMin)}</strong>)
-    — € <strong>${totalAmt.toFixed(2)}</strong></div>
-  `;
-  resultsEl.appendChild(gdiv);
+  const g = document.createElement('div'); g.className='month-block';
+  const totalMin = months.reduce((s,m)=>s+m.totalMin,0); const totalAmt = months.reduce((s,m)=>s+m.totalAmt,0);
+  g.innerHTML = `<h3>Resumen global</h3><div>Total minutos: <strong>${totalMin}</strong> — (<strong>${minutesToHHMM(totalMin)}</strong>) — € <strong>${totalAmt.toFixed(2)}</strong></div>`;
+  resultsEl.appendChild(g);
 }
 
-/* CSV */
-downloadCsvBtn.onclick = ()=>{
+/* CSV export */
+downloadCsvBtn.addEventListener('click', ()=>{
   if(!globalData) return;
-  let csv = "Año,Mes,Fecha,Inicio,Fin,Minutos,Tarifa,Importe\n";
+  let csv = 'Año,Mes,Fecha,Inicio,Fin,Minutos,Tarifa,Importe\\n';
   for(const m of globalData){
     for(const r of m.rows){
-      csv += [
-        r.yyyy,
-        pad2(r.mm),
-        r.date,
-        r.start,
-        r.end,
-        r.noct,
-        r.tariff,
-        r.amount.toFixed(2)
-      ].join(",")+"\n";
+      csv += [r.yyyy, pad2(r.mm), r.date, r.start, r.end, r.noct, r.tariff, r.amount.toFixed(2)].join(',') + '\\n';
     }
   }
-  const blob = new Blob([csv], {type:"text/csv"});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "nocturnidad.csv";
-  a.click();
-  URL.revokeObjectURL(url);
-};
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'nocturnidad.csv'; a.click(); URL.revokeObjectURL(url);
+});
 
-/* PDF */
-downloadPdfBtn.onclick = ()=>{
+/* PDF export */
+downloadPdfBtn.addEventListener('click', ()=>{
   if(!globalData) return;
   const { jsPDF } = window.jspdf;
-
-  const doc = new jsPDF({unit:"pt",format:"a4"});
-  let y = 40;
-
-  doc.setFontSize(18);
-  doc.text("MCT — Informe de Nocturnidad",40,y);
-  y+=30;
-
+  const doc = new jsPDF({unit:'pt',format:'a4'}); let y=40;
+  doc.setFontSize(18); doc.text('MCT — Informe de Nocturnidad',40,y); y+=30;
   doc.setFontSize(12);
-
   for(const m of globalData){
-    const title = `${pad2(m.mm)}/${m.yyyy}`;
-    doc.text(title,40,y);
-    y+=12;
-
-    const rows = m.rows.map(r => [
-      r.date, r.start, r.end, r.noct, r.tariff, r.amount.toFixed(2)
-    ]);
-
-    doc.autoTable({
-      head:[["Fecha","Inicio","Fin","Min","Tarifa","Importe"]],
-      body: rows,
-      startY: y
-    });
-
+    doc.text(`${pad2(m.mm)}/${m.yyyy}`,40,y); y+=12;
+    const rows = m.rows.map(r=>[r.date, r.start, r.end, String(r.noct), r.tariff, r.amount.toFixed(2)]);
+    doc.autoTable({ head:[['Fecha','Inicio','Fin','Min','Tarifa','Importe']], body: rows, startY: y });
     y = doc.lastAutoTable.finalY + 20;
   }
+  doc.save('informe_nocturnidad.pdf');
+});
 
-  doc.save("informe_nocturnidad.pdf");
-};
+/* Clear */
+clearBtn.addEventListener('click', ()=>{
+  fileInput.value=''; logEl.textContent=''; resultsEl.innerHTML=''; progressBar.style.width='0%'; progressText.textContent=''; progressDiv.style.display='none'; downloadCsvBtn.disabled=true; downloadPdfBtn.disabled=true;
+});
 
-/* Limpiar */
-clearBtn.onclick = ()=>{
-  fileInput.value="";
-  logEl.textContent="";
-  resultsEl.innerHTML="";
-  progressBar.style.width="0%";
-  progressText.textContent="";
-  progressDiv.style.display="none";
-  downloadCsvBtn.disabled=true;
-  downloadPdfBtn.disabled=true;
-};
 </script>
-
 </body>
 </html>
