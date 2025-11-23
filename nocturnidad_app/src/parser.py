@@ -16,33 +16,24 @@ def extract_text_tables(pdf_file_obj):
         return full_text
 
 def parse_pdf_file(pdf_file_obj):
-    text = extract_text_tables(pdf_file_obj)
-
-    # Extraemos filas por día: buscamos líneas con fecha y las HI / HF posteriores
-    registros = []
-    lines = [l.strip() for l in text.splitlines() if l.strip()]
-    i = 0
-    while i < len(lines):
-        line = lines[i]
-        if ROW_REGEX.match(line):
-            fecha = parse_date_ddmmyyyy(line)
-            # en las siguientes ~10 líneas buscamos las columnas HI y HF (cada una con dos horas)
-            hi, hf = None, None
-            ventana = lines[i:i+18]  # acotamos
-            for cand in ventana:
-                m = H_PAIR_REGEX.search(cand)
-                if m and hi is None:
-                    hi = m.group(0)  # e.g. "15:42 18:54"
-                elif m and hf is None and cand != hi:
-                    hf = m.group(0)
-                if hi and hf:
-                    break
-
-            registros.append({
-                'fecha': fecha,
-                'hi': hi,   # puede ser None si día sin trabajo
-                'hf': hf
-            })
-        i += 1
-
+    with pdfplumber.open(pdf_file_obj) as pdf:
+        registros = []
+        for page in pdf.pages:
+            table = page.extract_table()
+            if not table:
+                continue
+            for row in table:
+                if not row or not row[0]:
+                    continue
+                try:
+                    fecha = parse_date_ddmmyyyy(row[0])
+                except:
+                    continue
+                hi = row[15] if len(row) > 15 else None
+                hf = row[16] if len(row) > 16 else None
+                registros.append({
+                    'fecha': fecha,
+                    'hi': hi,
+                    'hf': hf
+                })
     return registros
