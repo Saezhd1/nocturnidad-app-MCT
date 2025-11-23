@@ -79,4 +79,3 @@ def calcular_nocturnidad_por_dia(registros):
             'importe': f"{importe:.2f}"
         })
     return resultados
-    
