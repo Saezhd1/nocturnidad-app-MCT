@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>MCT — Analizador de Nocturnidad</title>
+
+<style>
+  :root{--primary:#1e3a8a;--accent:#2563eb;--muted:#64748b;--card:#fff}
+  body{font-family:system-ui,Arial,sans-serif;background:#f8fafc;margin:24px;color:#0f172a}
+  .wrap{max-width:980px;margin:0 auto}
+  h1{color:var(--primary);margin:0 0 6px}
+  .subtitle{color:var(--muted);margin-bottom:12px}
+  .instructions{background:var(--card);border:1px solid #e6edf8;padding:10px;border-radius:8px;color:#334155;margin-bottom:12px}
+  .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .btn{background:var(--accent);color:#fff;border:0;padding:8px 12px;border-radius:8px;cursor:pointer}
+  .btn:disabled{opacity:.5}
+  #dropZone{margin-top:12px;padding:16px;border:2px dashed #cbd5e1;border-radius:8px;text-align:center;color:var(--muted)}
+  #dropZone.drag{border-color:var(--accent);color:var(--accent);background:#eff6ff}
+  #progress{height:8px;background:#e6eefc;border-radius:8px;margin-top:10px;overflow:hidden;display:none}
+  #progressBar{height:100%;width:0;background:linear-gradient(90deg,#60a5fa,#06b6d4)}
+  #progressText{font-size:13px;color:var(--muted);margin-top:6px;min-height:1em}
+  #log{margin-top:10px;font-family:monospace;font-size:13px;color:#334155;background:var(--card);padding:8px;border-radius:8px;border:1px solid #eef2ff;max-height:160px;overflow:auto}
+  .month-block{background:var(--card);border:1px solid #eef2ff;padding:12px;border-radius:8px;margin-top:12px}
+  table{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px}
+  th,td{padding:6px;border-bottom:1px solid #f1f5f9;text-align:left}
+  th{font-weight:700}
+  .totals{margin-top:8px;color:#334155}
+  footer{margin-top:18px;color:var(--muted);text-align:center}
+  /* modal */
+  .modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,0.5);display:none;align-items:center;justify-content:center;z-index:9999}
+  .modal{background:#fff;padding:18px;border-radius:10px;max-width:420px;width:92%;box-shadow:0 8px 24px rgba(2,6,23,0.2)}
+  .modal h3{margin:0 0 8px}
+  .field{margin-bottom:8px}
+  .field label{display:block;font-size:13px;color:#475569;margin-bottom:6px}
+  .field input{width:100%;padding:8px;border:1px solid #e6edf8;border-radius:6px;font-size:14px}
+  .modal .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+  .small-muted{font-size:13px;color:var(--muted)}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>MCT — Analizador de Nocturnidad</h1>
+    <div class="subtitle">Calcula minutos nocturnos (22:00–00:59 y 04:00–06:00) y sus importes</div>
+    <div class="instructions">
+      <strong>Instrucciones breves:</strong>
+      <ul>
+        <li>Sube uno o varios PDFs con texto (no funcionará sobre imágenes escaneadas sin OCR).</li>
+        <li>Los turnos deben estar en el PDF con pares de horas en la misma línea (p. ej. <code>07:30 15:00</code>).</li>
+        <li>Pulsa <em>Procesar archivos</em>, revisa resultados por mes y descarga CSV o PDF.</li>
+        <li>Al descargar el PDF se te pedirá número de empleado y nombre completo (se añaden al informe).</li>
+      </ul>
+    </div>
+  </header>
+
+  <div class="controls">
+    <input id="fileInput" type="file" accept="application/pdf" multiple>
+    <button id="processBtn" class="btn">Procesar archivos</button>
+    <button id="downloadCsvBtn" class="btn" disabled>Descargar CSV</button>
+    <button id="downloadPdfBtn" class="btn" disabled>Descargar PDF final</button>
+    <button id="clearBtn" class="btn" style="background:#dc2626">Limpiar</button>
+  </div>
+
+  <div id="dropZone">Arrastra tus PDFs aquí</div>
+  <div id="progress"><div id="progressBar"></div></div>
+  <div id="progressText"></div>
+  <div id="log">Esperando archivos...</div>
+  <div id="results"></div>
+
+  <footer>© MCT — Herramienta de análisis horario</footer>
+</div>
+
+<!-- pdf.js (unpkg build) -->
+<script src="https://unpkg.com/pdfjs-dist@3.10.141/build/pdf.js"></script>
+<script>
+  // If you later host pdf.worker.js locally, change this to "./pdfjs/pdf.worker.js"
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@3.10.141/build/pdf.worker.js";
+</script>
+
+<!-- jsPDF + autotable -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
+<!-- Modal for employee data -->
+<div id="empModal" class="modal-backdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="empTitle">
+    <h3 id="empTitle">Datos del empleado</h3>
+    <div class="field">
+      <label for="empNumber">Número de empleado</label>
+      <input id="empNumber" type="text" inputmode="numeric" placeholder="Ej. 12832">
+    </div>
+    <div class="field">
+      <label for="empName">Nombre completo</label>
+      <input id="empName" type="text" placeholder="Ej. Juan Pérez">
+    </div>
+    <div class="actions">
+      <button id="empCancel" class="btn" style="background:#9ca3af">Cancelar</button>
+      <button id="empOk" class="btn">Generar PDF</button>
+    </div>
+    <div class="small-muted" style="margin-top:8px">Los datos se incluirán en la cabecera del informe.</div>
+  </div>
+</div>
+
+<script>
+/* ---------------------------
+   Utilidades y configuración
+   --------------------------- */
+
+const fileInput = document.getElementById('fileInput');
+const processBtn = document.getElementById('processBtn');
+const downloadCsvBtn = document.getElementById('downloadCsvBtn');
+const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+const clearBtn = document.getElementById('clearBtn');
+const dropZone = document.getElementById('dropZone');
+const logEl = document.getElementById('log');
+const resultsEl = document.getElementById('results');
+const progress = document.getElementById('progress');
+const progressBar = document.getElementById('progressBar');
+const progressText = document.getElementById('progressText');
+
+const empModal = document.getElementById('empModal');
+const empOk = document.getElementById('empOk');
+const empCancel = document.getElementById('empCancel');
+const empNumberInput = document.getElementById('empNumber');
+const empNameInput = document.getElementById('empName');
+
+let archivos = [];
+let consolidatedData = null;
+
+function log(msg, type='info'){ const color = type==='error' ? '#dc2626' : '#334155'; logEl.innerHTML = `<span style="color:${color}">${msg}</span>`; }
+function showProgress(show){ progress.style.display = show ? 'block' : 'none'; }
+function setProgress(pct, text=''){ progressBar.style.width = pct + '%'; progressText.textContent = text; }
+
+function pad2(n){ return String(n).padStart(2,'0'); }
+function timeToMins(hhmm){ const [h,m] = hhmm.split(':').map(Number); return h*60 + m; }
+function minsToHHMM(mins){ return pad2(Math.floor(mins/60)) + ':' + pad2(mins%60); }
+
+/* Nocturnity windows */
+const windows = [
+  {start: 22*60, end: 24*60},
+  {start: 24*60, end: 24*60 + 59},
+  {start: 4*60, end: 6*60}
+];
+const windowsShifted = windows.concat(windows.map(w => ({start: w.start + 1440, end: w.end + 1440})));
+
+/* Tarifas */
+function tariffForDate(yyyy, mm, dd){
+  const n = yyyy*10000 + mm*100 + dd;
+  if(n >= 20220330 && n <= 20250425) return 0.05;
+  if(n >= 20250426) return 0.062;
+  return 0;
+}
+
+/* ---------------------------
+   Extraer texto con pdf.js
+   --------------------------- */
+async function extractTextFromPDFFile(file){
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+  let fullText = '';
+  for(let p = 1; p <= pdf.numPages; p++){
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    const pageText = content.items.map(it => it.str).join(' ');
+    fullText += pageText + '\n';
+  }
+  return { text: fullText, pages: pdf.numPages };
+}
+
+/* --- NEW PARSER: parseShiftsFromText_v2
+   Strategy:
+   - Find all dates (with index positions)
+   - Find all time tokens HH:MM (with index positions)
+   - For each date, take the time tokens between this date index and next date index
+   - Pair them sequentially: (t0,t1), (t2,t3), ...
+   - Build entries: {yyyy,mm,dd,dateStr,shifts:[{start,end},...]}
+*/
+function parseShiftsFromText_v2(text){
+  const dateRegex = /\b([0-3]?\d)\/([0-1]?\d)\/(\d{4})\b/g;
+  const timeRegex = /([01]?\d|2[0-3]):[0-5]\d/g;
+
+  // collect date matches with index
+  const dates = [];
+  for(const m of text.matchAll(dateRegex)){
+    dates.push({ dd: Number(m[1]), mm: Number(m[2]), yyyy: Number(m[3]), index: m.index });
+  }
+
+  // collect times with index
+  const times = [];
+  for(const m of text.matchAll(timeRegex)){
+    times.push({ t: m[0], index: m.index });
+  }
+
+  // if no dates, fallback: group entire document times under single pseudo-date (today) - but we'll skip to be strict
+  if(dates.length === 0){
+    // fallback: try to assign all times to a synthetic date — but prefer to return empty to avoid misattribution
+    return [];
+  }
+
+  // Build entries: for each date, collect times between date.index and next date.index (or end)
+  const entries = [];
+  for(let i=0;i<dates.length;i++){
+    const d = dates[i];
+    const startIdx = d.index;
+    const endIdx = (i+1 < dates.length) ? dates[i+1].index : text.length;
+    // collect times within range
+    const timesInRange = times.filter(tt => tt.index > startIdx && tt.index < endIdx).map(tt => tt.t);
+    // pair sequentially
+    const shifts = [];
+    for(let j=0;j+1<timesInRange.length;j+=2){
+      const s = timesInRange[j], e = timesInRange[j+1];
+      // sanity check: valid times only
+      if(!s || !e) continue;
+      shifts.push({ start: s, end: e });
+    }
+    if(shifts.length > 0){
+      entries.push({ yyyy: d.yyyy, mm: d.mm, dd: d.dd, dateStr: `${pad2(d.dd)}/${pad2(d.mm)}/${d.yyyy}`, shifts });
+    } else {
+      // No shifts found for this date: still push an empty entry so the code can decide (or skip later)
+      entries.push({ yyyy: d.yyyy, mm: d.mm, dd: d.dd, dateStr: `${pad2(d.dd)}/${pad2(d.mm)}/${d.yyyy}`, shifts: [] });
+    }
+  }
+
+  return entries;
+}
+
+/* ---------------------------
+   Calculo minutos nocturnos por shift
+   --------------------------- */
+function nocturnityMinutesForShift(startStr, endStr){
+  let s = timeToMins(startStr);
+  let e = timeToMins(endStr);
+  if(e < s) e += 1440;
+  let total = 0;
+  for(const w of windowsShifted){
+    const ov = Math.max(0, Math.min(e, w.end) - Math.max(s, w.start));
+    total += ov;
+  }
+  return Math.round(total);
+}
+
+/* ---------------------------
+   Analizar entradas -> filas
+   --------------------------- */
+function analyzeEntries(entries){
+  const rows = [];
+  for(const ent of entries){
+    if(ent.yyyy === 2022 && ent.mm === 3 && !(ent.dd === 30 || ent.dd === 31)) continue;
+    for(const sh of ent.shifts){
+      const noct = nocturnityMinutesForShift(sh.start, sh.end);
+      if(noct <= 0) continue;
+      const tariff = tariffForDate(ent.yyyy, ent.mm, ent.dd);
+      const amount = +(noct * tariff).toFixed(2);
+      rows.push({
+        yyyy: ent.yyyy, mm: ent.mm, dd: ent.dd, dateStr: ent.dateStr,
+        start: sh.start, end: sh.end, noctMin: noct, tariff, amount
+      });
+    }
+  }
+  return rows;
+}
+
+/* ---------------------------
+   Consolidar por mes con totales por tarifa
+   --------------------------- */
+function consolidateByMonth(docsRows){
+  const map = new Map();
+  for(const rows of docsRows){
+    for(const r of rows){
+      const key = `${r.yyyy}-${String(r.mm).padStart(2,'0')}`;
+      if(!map.has(key)) map.set(key, { yyyy: r.yyyy, mm: r.mm, rows: [] });
+      map.get(key).rows.push(r);
+    }
+  }
+  const months = [];
+  for(const [k, v] of [...map.entries()].sort()){
+    const totalMin = v.rows.reduce((s,x)=>s + x.noctMin, 0);
+    const totalAmt05 = v.rows.filter(x=>x.tariff===0.05).reduce((s,x)=>s + x.amount, 0);
+    const totalAmt062 = v.rows.filter(x=>x.tariff===0.062).reduce((s,x)=>s + x.amount, 0);
+    const totalAmount = +(totalAmt05 + totalAmt062).toFixed(2);
+    months.push({
+      key: k, yyyy: v.yyyy, mm: v.mm, rows: v.rows.sort((a,b)=>a.dd - b.dd),
+      totalMin,
+      totalAmt05: +totalAmt05.toFixed(2),
+      totalAmt062: +totalAmt062.toFixed(2),
+      totalAmount
+    });
+  }
+
+  const globalTotalMin = months.reduce((s,m)=>s + m.totalMin, 0);
+  const globalAmt05 = months.reduce((s,m)=>s + m.totalAmt05, 0);
+  const globalAmt062 = months.reduce((s,m)=>s + m.totalAmt062, 0);
+  const globalTotalAmount = +(globalAmt05 + globalAmt062).toFixed(2);
+
+  return { months, globalTotalMin, globalAmt05: +globalAmt05.toFixed(2), globalAmt062: +globalAmt062.toFixed(2), globalTotalAmount };
+}
+
+/* ---------------------------
+   Render UI con importes por tarifa
+   --------------------------- */
+function renderResults(consolidated){
+  resultsEl.innerHTML = '';
+  if(!consolidated || consolidated.months.length === 0){
+    resultsEl.innerHTML = '<div style="color:#64748b">No se encontraron minutos de nocturnidad.</div>';
+    return;
+  }
+
+  for(const m of consolidated.months){
+    const div = document.createElement('div');
+    div.className = 'month-block';
+    const dt = new Date(m.yyyy, m.mm - 1, 1);
+    const title = dt.toLocaleString('es-ES', { month: 'long', year: 'numeric' });
+    div.innerHTML = `<h3>${title}</h3>`;
+    const table = document.createElement('table');
+    table.innerHTML = `<thead><tr><th>Fecha</th><th>Inicio</th><th>Fin</th><th>Minutos</th><th>Tarifa €/min</th><th>Importe €</th></tr></thead>`;
+    const tbody = document.createElement('tbody');
+    for(const r of m.rows){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${r.dateStr}</td><td>${r.start}</td><td>${r.end}</td><td>${r.noctMin}</td><td>${r.tariff>0?r.tariff.toFixed(3):''}</td><td>${r.amount.toFixed(2)}</td>`;
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    div.appendChild(table);
+
+    const totalsHtml = `
+      <div class="totals">
+        Total minutos: <strong>${m.totalMin}</strong> — (${minsToHHMM(m.totalMin)})<br>
+        Importe (0,05 €/min): <strong>€ ${m.totalAmt05.toFixed(2)}</strong><br>
+        Importe (0,062 €/min): <strong>€ ${m.totalAmt062.toFixed(2)}</strong><br>
+        <strong>Total mes: € ${m.totalAmount.toFixed(2)}</strong>
+      </div>
+    `;
+    div.innerHTML += totalsHtml;
+    resultsEl.appendChild(div);
+  }
+
+  // Global
+  const g = document.createElement('div');
+  g.className = 'month-block';
+  g.innerHTML = `<h3>Resumen global</h3>
+    <div class="totals">
+      Total minutos: <strong>${consolidated.globalTotalMin}</strong> — (${minsToHHMM(consolidated.globalTotalMin)})<br>
+      Total Importe (0,05 €/min): <strong>€ ${consolidated.globalAmt05.toFixed(2)}</strong><br>
+      Total Importe (0,062 €/min): <strong>€ ${consolidated.globalAmt062.toFixed(2)}</strong><br>
+      <strong>Total general: € ${consolidated.globalTotalAmount.toFixed(2)}</strong>
+    </div>`;
+  resultsEl.appendChild(g);
+}
+
+/* ---------------------------
+   CSV export (includes tariff column)
+   --------------------------- */
+function generateCsv(consolidated){
+  const lines = [];
+  lines.push(['Año','Mes','Fecha','Inicio','Fin','Minutos nocturnos','Tarifa €/min','Importe €'].join(','));
+  for(const m of consolidated.months){
+    for(const r of m.rows){
+      lines.push([r.yyyy, String(r.mm).padStart(2,'0'), r.dateStr, r.start, r.end, r.noctMin, r.tariff>0?r.tariff.toFixed(3):'', r.amount.toFixed(2)].map(v => `"${String(v).replace(/"/g,'""')}"`).join(','));
+    }
+    lines.push([`Total mes ${m.key}`,'','','','',m.totalMin,'',m.totalAmount.toFixed(2)].join(','));
+    lines.push([`Importe 0,05 €/min mes ${m.key}`,'','','','', '', '', m.totalAmt05.toFixed(2)].join(','));
+    lines.push([`Importe 0,062 €/min mes ${m.key}`,'','','','', '', '', m.totalAmt062.toFixed(2)].join(','));
+  }
+  lines.push(['Resumen global','','','','', consolidated.globalTotalMin, '', consolidated.globalTotalAmount.toFixed(2)].join(','));
+  lines.push(['Total tramo 0,05 €/min','','','','', '', '', consolidated.globalAmt05.toFixed(2)].join(','));
+  lines.push(['Total tramo 0,062 €/min','','','','', '', '', consolidated.globalAmt062.toFixed(2)].join(','));
+  return lines.join('\n');
+}
+
+/* ---------------------------
+   PDF export (modal asks for employee data first)
+   --------------------------- */
+function showEmployeeModal(){ empModal.style.display = 'flex'; empModal.setAttribute('aria-hidden','false'); empNumberInput.value=''; empNameInput.value=''; empNumberInput.focus(); }
+function hideEmployeeModal(){ empModal.style.display = 'none'; empModal.setAttribute('aria-hidden','true'); }
+
+empCancel.addEventListener('click', ()=> hideEmployeeModal());
+
+empOk.addEventListener('click', async () => {
+  const empNum = empNumberInput.value.trim();
+  const empName = empNameInput.value.trim();
+  if(!empName){ alert('Introduce el nombre completo del empleado.'); empNameInput.focus(); return; }
+  hideEmployeeModal();
+  await generatePdfReportWithEmployee(consolidatedData, empNum, empName);
+});
+
+/* Generate PDF with employee header */
+async function generatePdfReportWithEmployee(consolidated, empNum, empName){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const margin = 40;
+  let y = 40;
+
+  doc.setFontSize(16);
+  doc.text('MCT — Informe de Nocturnidad', margin, y);
+  y += 20;
+  doc.setFontSize(11);
+  doc.text(`Empleado: ${empNum || '-'}`, margin, y);
+  doc.text(`Nombre: ${empName}`, margin + 300, y);
+  y += 16;
+  doc.setFontSize(10);
+  doc.text('Franjas: 22:00–00:59 y 04:00–06:00', margin, y);
+  y += 14;
+  doc.text('Tarifas aplicadas: 30/03/2022–25/04/2025 => 0,05 €/min; 26/04/2025 en adelante => 0,062 €/min', margin, y);
+  y += 18;
+
+  for(const m of consolidated.months){
+    if(y > 720){ doc.addPage(); y = 40; }
+    doc.setFontSize(12);
+    const dt = new Date(m.yyyy, m.mm - 1, 1);
+    doc.text(dt.toLocaleString('es-ES', { month: 'long', year: 'numeric' }), margin, y);
+    y += 12;
+
+    const body = m.rows.map(r => [r.dateStr, r.start, r.end, String(r.noctMin), r.tariff>0?r.tariff.toFixed(3):'', r.amount.toFixed(2)]);
+    doc.autoTable({
+      head: [['Fecha','Inicio','Fin','Min','Tarifa','Importe €']],
+      body,
+      startY: y,
+      margin: { left: margin, right: margin },
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [240,240,240] }
+    });
+    y = doc.lastAutoTable.finalY + 8;
+    doc.setFontSize(10);
+    doc.text(`Total minutos: ${m.totalMin} — (${minsToHHMM(m.totalMin)})`, margin, y);
+    doc.text(`Importe (0,05 €/min): € ${m.totalAmt05.toFixed(2)}`, margin + 250, y);
+    doc.text(`Importe (0,062 €/min): € ${m.totalAmt062.toFixed(2)}`, margin + 420, y);
+    y += 18;
+  }
+
+  if(y > 720){ doc.addPage(); y = 40; }
+  doc.setFontSize(12);
+  doc.text('Resumen global', margin, y);
+  y += 12;
+  doc.setFontSize(10);
+  doc.text(`Total minutos: ${consolidated.globalTotalMin} — (${minsToHHMM(consolidated.globalTotalMin)})`, margin, y);
+  y += 12;
+  doc.text(`Total Importe (0,05 €/min): € ${consolidated.globalAmt05.toFixed(2)}`, margin, y);
+  y += 12;
+  doc.text(`Total Importe (0,062 €/min): € ${consolidated.globalAmt062.toFixed(2)}`, margin + 300, y);
+  y += 14;
+  doc.setFontSize(12);
+  doc.text(`TOTAL GENERAL: € ${consolidated.globalTotalAmount.toFixed(2)}`, margin, y);
+
+  doc.save('informe_nocturnidad.pdf');
+}
+
+/* ---------------------------
+   Main process flow
+   --------------------------- */
+async function processFiles(files){
+  showProgress(true);
+  setProgress(0, 'Iniciando...');
+  const allRowsPerFile = [];
+
+  for(let i=0;i<files.length;i++){
+    const file = files[i];
+    setProgress(Math.round((i / files.length) * 100), `Extrayendo texto: ${file.name} (${i+1}/${files.length})`);
+    log(`Extrayendo texto de ${file.name}...`);
+    try{
+      const { text, pages } = await extractTextFromPDFFile(file);
+      log(`Texto extraído (${pages} pág.)`);
+      // >>> FIXED LINE: call the v2 parser that handles HI/HF columns with noise
+      const entries = parseShiftsFromText_v2(text); // <-- changed from parseShiftsFromText(text)
+      const rows = analyzeEntries(entries);
+      allRowsPerFile.push(rows);
+      log(`Procesado: ${rows.length} registros de nocturnidad en ${file.name}`);
+    }catch(err){
+      console.error(err);
+      log(`Error procesando ${file.name}: ${err.message || err}`, 'error');
+    }
+  }
+
+  consolidatedData = consolidateByMonth(allRowsPerFile);
+  renderResults(consolidatedData);
+  setProgress(100, 'Completado');
+  downloadCsvBtn.disabled = false;
+  downloadPdfBtn.disabled = false;
+  showProgress(false);
+  log('Procesamiento finalizado.');
+}
+
+/* ---------------------------
+   Events
+   --------------------------- */
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave', e => { e.preventDefault(); dropZone.classList.remove('drag'); });
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag');
+  const files = Array.from(e.dataTransfer.files || []).filter(f => f.type === 'application/pdf');
+  if(files.length){ archivos = files; fileInput.files = e.dataTransfer.files; log(`${archivos.length} PDF(s) listo(s) para procesar.`); }
+});
+
+fileInput.addEventListener('change', () => {
+  archivos = Array.from(fileInput.files || []).filter(f => f.type === 'application/pdf');
+  log(`${archivos.length} PDF(s) seleccionado(s).`);
+});
+
+/* Process button */
+processBtn.addEventListener('click', async () => {
+  if(!archivos || archivos.length === 0){ log('No hay archivos seleccionados.', 'warn'); return; }
+  resultsEl.innerHTML = '';
+  await processFiles(archivos);
+});
+
+/* Clear */
+clearBtn.addEventListener('click', () => {
+  archivos = [];
+  consolidatedData = null;
+  fileInput.value = '';
+  resultsEl.innerHTML = '';
+  log('Interfaz limpiada.');
+  downloadCsvBtn.disabled = true;
+  downloadPdfBtn.disabled = true;
+  setProgress(0, '');
+});
+
+/* CSV/PDF buttons */
+downloadCsvBtn.addEventListener('click', () => {
+  if(!consolidatedData) return;
+  const csv = generateCsv(consolidatedData);
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'nocturnidad_resumen.csv'; a.click(); URL.revokeObjectURL(url);
+});
+
+downloadPdfBtn.addEventListener('click', () => {
+  if(!consolidatedData) return;
+  // show modal to get employee data (A2)
+  showEmployeeModal();
+});
+</script>
+</body>
+</html>
