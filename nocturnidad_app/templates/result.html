@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Resultado</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <h1>Resultado del análisis</h1>
+  <p><strong>Nombre:</strong> {{ nombre }} &nbsp; | &nbsp; <strong>Empleado:</strong> {{ empleado }}</p>
+
+  <h2>Resumen global</h2>
+  <p><strong>Minutos:</strong> {{ resumen['global']['minutos'] }} &nbsp; | &nbsp;
+     <strong>Importe (€):</strong> {{ "%.2f"|format(resumen['global']['importe']) }} &nbsp; | &nbsp;
+     <strong>Días:</strong> {{ resumen['global']['dias'] }}</p>
+
+  <h2>Documentos analizados</h2>
+  <ul>
+    {% for doc in resultados %}
+      <li>{{ doc['filename'] }} ({{ doc['dias']|length }} días)</li>
+    {% endfor %}
+  </ul>
+
+  <a href="/download/{{ key }}"><button>Descargar informe PDF</button></a>
+</body>
+</html>

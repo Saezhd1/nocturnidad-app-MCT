@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Nocturnidad TITSA</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <h1>Nocturnidad TITSA</h1>
+  <form action="/upload" method="post" enctype="multipart/form-data">
+    <label>Nombre completo</label>
+    <input type="text" name="nombre" required>
+
+    <label>Número de empleado</label>
+    <input type="text" name="empleado" required>
+
+    <label>Selecciona uno o varios PDFs</label>
+    <input type="file" name="files" multiple accept="application/pdf">
+
+    <button type="submit">Analizar</button>
+  </form>
+</body>
+</html>
