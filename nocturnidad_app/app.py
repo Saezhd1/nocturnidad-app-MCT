@@ -45,9 +45,9 @@ def upload():
     return render_template("result.html", empleado=empleado, nombre=nombre,
                            resultados=resultados, resumen=resumen)
 
-# ✅ Ruta corregida: dos variables separadas
-@app.route("/download/<empleado>/<nombre>")
-def download(empleado, nombre):
+# ✅ Ruta simple y estable
+@app.route("/download")
+def download():
     payload = session.get("payload")
     if not payload:
         return redirect(url_for("index"))
@@ -58,12 +58,12 @@ def download(empleado, nombre):
         resultados=payload["resultados"],
         resumen=payload["resumen"]
     )
-    buffer.seek(0)  # 🔑 muy importante
+    buffer.seek(0)
 
     return send_file(buffer,
                      mimetype="application/pdf",
                      as_attachment=True,
-                     download_name=f"informe_{empleado}.pdf")
+                     download_name=f"informe_{payload['empleado']}.pdf")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
