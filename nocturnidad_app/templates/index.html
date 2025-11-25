@@ -1,23 +1,22 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <title>Nocturnidad TITSA</title>
-  <link rel="stylesheet" href="/static/styles.css">
+    <title>Cálculo de nocturnidad</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-  <h1>Nocturnidad TITSA</h1>
-  <form action="/upload" method="post" enctype="multipart/form-data">
-    <label>Nombre completo</label>
-    <input type="text" name="nombre" required>
+    <h1>Cálculo de nocturnidad</h1>
+    <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
+        <label for="empleado">Número de empleado:</label>
+        <input type="text" id="empleado" name="empleado" required><br><br>
 
-    <label>Número de empleado</label>
-    <input type="text" name="empleado" required>
+        <label for="nombre">Nombre:</label>
+        <input type="text" id="nombre" name="nombre" required><br><br>
 
-    <label>Selecciona uno o varios PDFs</label>
-    <input type="file" name="files" multiple accept="application/pdf">
+        <label for="pdfs">Selecciona uno o más PDFs:</label>
+        <input type="file" id="pdfs" name="pdfs" multiple required><br><br>
 
-    <button type="submit">Analizar</button>
-  </form>
+        <input type="submit" value="Procesar">
+    </form>
 </body>
 </html>
