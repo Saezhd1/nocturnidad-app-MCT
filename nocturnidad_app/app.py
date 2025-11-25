@@ -11,7 +11,14 @@ def index():
 
 @app.route("/upload", methods=["POST"])
 def upload():
+    # Comprobaciones defensivas
+    if "file" not in request.files:
+        return "No se ha enviado ningún archivo", 400
+
     file = request.files["file"]
+    if file.filename == "":
+        return "Archivo vacío", 400
+
     empleado = request.form.get("empleado", "")
     nombre = request.form.get("nombre", "")
 
