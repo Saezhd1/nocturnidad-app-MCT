@@ -5,12 +5,19 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from io import BytesIO
 
 def _tabla_dias(resultados_por_pdf):
-    rows = [["Archivo", "Fecha", "Minutos nocturnos", "Importe (€)"]]
+    rows = [["Archivo", "Fecha", "HI", "HF", "Minutos nocturnos", "Importe (€)"]]
     for doc in resultados_por_pdf:
         fn = doc['filename']
         for d in doc['dias']:
             if d['minutos_nocturnos'] > 0:
-                rows.append([fn, d['fecha'], str(d['minutos_nocturnos']), d['importe']])
+                rows.append([
+                    fn,
+                    d['fecha'],
+                    d['hi'],
+                    d['hf'],
+                    str(d['minutos_nocturnos']),
+                    d['importe']
+                ])
     return rows
 
 def _tabla_mes(resumen):
@@ -26,26 +33,50 @@ def _tabla_global(resumen):
 
 def exportar_pdf_informe(empleado, nombre, resultados, resumen):
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=36, rightMargin=36, topMargin=36, bottomMargin=36)
+    doc = SimpleDocTemplate(buffer, pagesize=A4,
+                            leftMargin=36, rightMargin=36,
+                            topMargin=36, bottomMargin=36)
     styles = getSampleStyleSheet()
     story = []
 
+    # Título e identificación
     title = Paragraph("Informe de nocturnidad", styles['Title'])
     ident = Paragraph(f"Número de empleado: {empleado} | Nombre: {nombre}", styles['Normal'])
     story += [title, Spacer(1, 12), ident, Spacer(1, 24)]
 
+    # Tabla de detalle por tramos
     dias_tbl = Table(_tabla_dias(resultados))
     dias_tbl.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#eeeeee')),
         ('GRID', (0,0), (-1,-1), 0.5, colors.gray),
-        ('ALIGN', (2,1), (3,-1), 'RIGHT'),
+        ('ALIGN', (4,1), (5,-1), 'RIGHT'),
         ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold')
     ]))
-    story += [Paragraph("Detalle por día (solo días con nocturnidad)", styles['Heading2']), Spacer(1, 6), dias_tbl, Spacer(1, 18)]
+    story += [Paragraph("Detalle por tramos (solo tramos con nocturnidad)", styles['Heading2']),
+              Spacer(1, 6), dias_tbl, Spacer(1, 18)]
 
+    # Tabla resumen mensual
     mes_tbl = Table(_tabla_mes(resumen))
     mes_tbl.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#eeeeee')),
         ('GRID', (0,0), (-1,-1), 0.5, colors.gray),
         ('ALIGN', (1,1), (-1,-1), 'RIGHT'),
-        ('FONTNAME
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold')
+    ]))
+    story += [Paragraph("Resumen mensual", styles['Heading2']),
+              Spacer(1, 6), mes_tbl, Spacer(1, 18)]
+
+    # Tabla resumen global
+    global_tbl = Table(_tabla_global(resumen))
+    global_tbl.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#eeeeee')),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.gray),
+        ('ALIGN', (0,1), (-1,-1), 'RIGHT'),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold')
+    ]))
+    story += [Paragraph("Resumen global", styles['Heading2']),
+              Spacer(1, 6), global_tbl]
+
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
