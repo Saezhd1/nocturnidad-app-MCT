@@ -85,8 +85,9 @@ def parse_pdf(file):
                     if not fecha_val.strip():
                         continue
 
-                    hi_list = HHMM.findall(hi_raw)
-                    hf_list = HHMM.findall(hf_raw)
+                    # Extraer horas completas con finditer
+                    hi_list = [m.group(0) for m in HHMM.finditer(hi_raw)]
+                    hf_list = [m.group(0) for m in HHMM.finditer(hf_raw)]
 
                     if not hi_list or not hf_list:
                         continue
