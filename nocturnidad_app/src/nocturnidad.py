@@ -51,4 +51,3 @@ def calcular_nocturnidad_por_dia(registros):
         })
 
     return resultados
-
