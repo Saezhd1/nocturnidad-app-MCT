@@ -1,10 +1,6 @@
 from datetime import datetime
 
 def calcular_nocturnidad_por_dia(registros):
-    """
-    Calcula minutos nocturnos e importe por día según HI/HF.
-    Ahora soporta múltiples tramos por día (ej. "13:48 17:07" vs "16:24 21:48").
-    """
     resultados = []
     for r in registros:
         fecha = r["fecha"]
@@ -18,8 +14,6 @@ def calcular_nocturnidad_por_dia(registros):
             continue
 
         minutos_nocturnos = 0
-
-        # Tramos nocturnos oficiales
         tramos = [
             (datetime.strptime("22:00", "%H:%M"), datetime.strptime("23:59", "%H:%M")),
             (datetime.strptime("00:00", "%H:%M"), datetime.strptime("00:59", "%H:%M")),
@@ -33,7 +27,6 @@ def calcular_nocturnidad_por_dia(registros):
                 if overlap_start < overlap_end:
                     minutos_nocturnos += int((overlap_end - overlap_start).total_seconds() / 60)
 
-        # Tarifa según fecha
         try:
             fecha_dt = datetime.strptime(fecha, "%d/%m/%Y")
         except Exception:
