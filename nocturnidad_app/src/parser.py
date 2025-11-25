@@ -22,6 +22,7 @@ def _find_columns(page):
         elif t == "hf":
             hf_x = (w["x0"], w["x1"]); header_bottom = max(header_bottom, w["bottom"])
 
+    # Fallback si no encuentra cabeceras
     if not (fecha_x and hi_x and hf_x):
         x0_page, x1_page = page.bbox[0], page.bbox[2]
         width = x1_page - x0_page
@@ -72,10 +73,16 @@ def parse_pdf(file):
                     match_fecha = FECHA.search(fecha_raw)
                     fecha_val = match_fecha.group(0) if match_fecha else None
 
-                    # Caso especial de subfila (rowspan visual): un solo token como "1" bajo la fecha
-                    es_subfila = (not fecha_val) and (len(fecha_tokens) == 1) and (fecha_tokens[0].isdigit())
+                    # Caso especial de subfila (ej. "1" debajo de la fecha)
+                    es_subfila = (not fecha_val) and (len(fecha_tokens) == 1) and fecha_tokens[0].isdigit()
                     if es_subfila and last_fecha:
-                        fecha_val = last_fecha  # solo en caso detectado de subfila
+                        fecha_val = last_fecha
+
+                    # Si no hay fecha válida, saltar (evita corrimientos en descansos)
+                    if not fecha_val:
+                        continue
+
+                    last_fecha = fecha_val
 
                     # 2) Extraer horas completas
                     hi_raw = " ".join(hi_tokens).strip()
@@ -83,18 +90,10 @@ def parse_pdf(file):
                     hi_list = [m.group(0) for m in HHMM.finditer(hi_raw)]
                     hf_list = [m.group(0) for m in HHMM.finditer(hf_raw)]
 
-                    # 3) Rechazar líneas sin fecha y sin horas
-                    if not fecha_val:
-                        # Sin fecha: no procesar (evita corrimientos como 07/08 ← 08/08)
-                        continue
-
-                    # Persistir última fecha válida (para subfilas legítimas únicamente)
-                    last_fecha = fecha_val
-
                     if not hi_list or not hf_list:
                         continue
 
-                    # 4) Aplicar la regla Daniel: principal arriba HI, abajo HF
+                    # 3) Tramo principal = HI[0] + HF[-1]
                     registros.append({
                         "fecha": fecha_val,
                         "hi": hi_list[0],
@@ -102,7 +101,7 @@ def parse_pdf(file):
                         "principal": True
                     })
 
-                    # Secundario: HI abajo con HF arriba (si existen ambos)
+                    # 4) Tramo secundario = HI[1] + HF[0] (si existen)
                     if len(hi_list) >= 2 and len(hf_list) >= 2:
                         registros.append({
                             "fecha": fecha_val,
