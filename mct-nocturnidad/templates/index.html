@@ -1,0 +1,64 @@
+<!-- templates/index.html -->
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>MCT cálculo complemento de nocturnidad</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  </head>
+  <body>
+    <div class="container">
+      <header class="header">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="logo" class="logo">
+        <h1>MCT cálculo complemento de nocturnidad</h1>
+      </header>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="card">
+            {% for category, msg in messages %}
+              <div class="flash {{ 'flash-danger' if category == 'danger' else 'flash-info' }}"></div>
+                {{ msg }}              
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <section class="card">
+        <form method="post" enctype="multipart/form-data">
+          <div class="form-row">
+            <div class="field">
+              <label>Nombre completo</label>
+              <input type="text" name="employee_name" placeholder="Nombre completo" required>
+            </div>
+            <div class="field">
+              <label>Código de empleado</label>
+              <input type="text" name="employee_code" placeholder="Código" required>
+            </div>
+            <div class="field">
+              <label>Adjuntar PDFs (múltiple)</label>
+              <input type="file" name="pdfs" accept="application/pdf" multiple required>
+            </div>
+          </div>
+
+          <div style="margin-top:12px;">
+            <button class="btn" type="submit">Analizar PDFs</button>
+            <a class="btn secondary" href="{{ url_for('index') }}">Limpiar</a>
+          </div>
+
+          <div class="progress-wrap">
+            <div class="small-muted">Progreso</div>
+            <div class="progress"><i style="width:0%"></i></div>
+          </div>
+        </form>
+      </section>
+
+      <footer class="footer">
+        <div>Movimiento Social Laboral de Conductores de TITSA</div>
+        <div class="small-muted">Página 1</div>
+      </footer>
+    </div>
+  </body>
+</html>

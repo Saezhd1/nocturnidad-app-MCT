@@ -1,0 +1,106 @@
+<!-- templates/preview.html -->
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Vista previa - MCT cálculo complemento de nocturnidad</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  </head>
+  <body>
+    <div class="container">
+      <header class="header">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="logo" class="logo">
+        <h1>MCT cálculo complemento de nocturnidad</h1>
+      </header>
+
+      <section class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div class="small-muted">Código de empleado</div>
+            <div><strong>{{ employee_code }}</strong></div>
+          </div>
+          <div>
+            <div class="small-muted">Nombre completo</div>
+            <div><strong>{{ employee_name }}</strong></div>
+          </div>
+          <div>
+            <form method="post" action="{{ url_for('download_pdf') }}">
+              <input type="hidden" name="payload" value='{{ payload_json|tojson|safe }}'>
+              <button class="btn" type="submit">Descargar informe PDF</button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="preview-title">
+          <h3>Detalle de días con minutos nocturnos</h3>
+          <div class="small-muted">Filtradas según reglas indicadas</div>
+        </div>
+
+        {% if rows %}
+        <table class="table" role="table" aria-label="Resultados nocturnidad">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Hora Inicio</th>
+              <th>Hora Fin</th>
+              <th>Minutos nocturnos</th>
+              <th>Importe (€)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in rows %}
+            <tr>
+              <td>{{ r.fecha }}</td>
+              <td>{{ r.hi }}</td>
+              <td>{{ r.hf }}</td>
+              <td>{{ r.minutos }}</td>
+              <td>{{ "%.2f"|format(r.importe) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <div class="summary" style="margin-top:14px;">
+          <div class="box">
+            <div class="small-muted">Total por mes</div>
+            {% for m in summary.monthly %}
+              <div><strong>{{ m.mes }}</strong> — {{ m.minutos }} min — {{ "%.2f"|format(m.importe) }} €</div>
+            {% endfor %}
+          </div>
+
+          <div class="box">
+            <div class="small-muted">Total por año</div>
+            {% for y in summary.annual %}
+              <div><strong>{{ y.anio }}</strong> — {{ y.minutos }} min — {{ "%.2f"|format(y.importe) }} €</div>
+            {% endfor %}
+          </div>
+
+          <div class="box">
+            <div class="small-muted">Total global</div>
+            <div><strong>{{ summary.global.minutos }} min</strong></div>
+            <div><strong>{{ "%.2f"|format(summary.global.importe) }} €</strong></div>
+          </div>
+        </div>
+
+        {% else %}
+          <div class="small-muted">No se han detectado días con minutos nocturnos según los PDFs subidos y las reglas aplicadas.</div>
+        {% endif %}
+      </section>
+
+      <section class="card">
+        <h4>Nota legal</h4>
+        <p>Cálculo según ACTA JUZGADO DE LO SOCIAL Nº4 Procedimiento Nº0000055/2025</p>
+        <p>Importes desde 30/03/2022 hasta 25/04/2025 1h=3€ 0,05€min</p>
+        <p>Importes desde 26/04/2025 1h=3,72€ 0,062€min</p>
+      </section>
+
+      <footer class="footer">
+        <div>Movimiento Social Laboral de Conductores de TITSA</div>
+        <div class="small-muted">Página 1</div>
+      </footer>
+    </div>
+  </body>
+</html>
