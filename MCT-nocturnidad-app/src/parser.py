@@ -38,7 +38,6 @@ def parse_pdf(file):
             last_fecha = None
             for page in pdf.pages:
                 cols = _find_columns(page)
-                # Palabras con tolerancias pequeñas para que se agrupen por línea
                 words = page.extract_words(x_tolerance=2, y_tolerance=2, use_text_flow=False)
 
                 # Agrupar por línea (clave: y redondeada)
@@ -70,25 +69,23 @@ def parse_pdf(file):
                     hf_raw = " ".join(hf_tokens).strip()
 
                     # Filtrar si no hay horas en ninguna columna
-                    if not (hi_raw or hf_raw): 
+                    if not (hi_raw or hf_raw):
                         continue
 
-                    # Extraer horas HH:MM y descartar ruidos (00, números sueltos)
+                    # Extraer horas HH:MM y descartar ruidos
                     hi_list = [x for x in hi_raw.split() if ":" in x and x.count(":") == 1]
                     hf_list = [x for x in hf_raw.split() if ":" in x and x.count(":") == 1]
 
                     if not hi_list or not hf_list:
                         continue
-                        
-                    # Heredar fecha en filas partida (rowspan visual)
+
+                    # Heredar fecha solo si la fila es válida
                     if not fecha_val and last_fecha:
                         fecha_val = last_fecha
                     elif fecha_val:
                         last_fecha = fecha_val
-                    
+
                     # Regla Daniel:
-                    # - Principal: HI arriba (índice 0) con HF abajo (último)
-                    # - Secundario: si hay dos, HI abajo (índice 1) con HF arriba (índice 0)
                     principal_hi = hi_list[0]
                     principal_hf = hf_list[-1]
                     registros.append({
@@ -112,4 +109,3 @@ def parse_pdf(file):
     for r in registros[:6]:
         print("[parser] Ej:", r)
     return registros
-
