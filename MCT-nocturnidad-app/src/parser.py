@@ -69,12 +69,6 @@ def parse_pdf(file):
                     hi_raw = " ".join(hi_tokens).strip()
                     hf_raw = " ".join(hf_tokens).strip()
 
-                    # Heredar fecha en filas partida (rowspan visual)
-                    if not fecha_val and last_fecha:
-                        fecha_val = last_fecha
-                    elif fecha_val:
-                        last_fecha = fecha_val
-
                     # Filtrar si no hay horas en ninguna columna
                     if not (hi_raw or hf_raw): 
                         continue
@@ -85,7 +79,13 @@ def parse_pdf(file):
 
                     if not hi_list or not hf_list:
                         continue
-
+                        
+                    # Heredar fecha en filas partida (rowspan visual)
+                    if not fecha_val and last_fecha:
+                        fecha_val = last_fecha
+                    elif fecha_val:
+                        last_fecha = fecha_val
+                    
                     # Regla Daniel:
                     # - Principal: HI arriba (índice 0) con HF abajo (último)
                     # - Secundario: si hay dos, HI abajo (índice 1) con HF arriba (índice 0)
@@ -112,3 +112,4 @@ def parse_pdf(file):
     for r in registros[:6]:
         print("[parser] Ej:", r)
     return registros
+
