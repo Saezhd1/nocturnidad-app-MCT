@@ -5,9 +5,6 @@ def _in_range(xmid, xr, tol=2):
     return xr[0] - tol <= xmid <= xr[1] + tol
 
 def es_fecha_valida(texto):
-    """
-    Comprueba si el texto tiene formato de fecha dd/mm/aa o dd-mm-aaaa.
-    """
     return bool(re.match(r"\d{1,2}[/-]\d{1,2}[/-]\d{2,4}", texto))
 
 def _find_columns(page):
@@ -41,12 +38,11 @@ def parse_pdf(file):
                 cols = _find_columns(page)
                 words = page.extract_words(x_tolerance=2, y_tolerance=2, use_text_flow=False)
 
-                # Agrupar por bloques verticales más amplios (ej. cada 5px)
                 lines = {}
                 for w in words:
                     if w["top"] <= cols["header_bottom"]:
                         continue
-                    y_key = int(w["top"] // 5)  # agrupación más robusta
+                    y_key = int(w["top"] // 5)
                     lines.setdefault(y_key, []).append(w)
 
                 for y in sorted(lines.keys()):
@@ -67,20 +63,36 @@ def parse_pdf(file):
                     hi_raw = " ".join(hi_tokens).strip()
                     hf_raw = " ".join(hf_tokens).strip()
 
-                    # 🚫 Si no hay fecha válida, descartar
+                    # Si no hay fecha, marcamos como "0" para trazabilidad
                     if not fecha_val or not es_fecha_valida(fecha_val):
-                        continue
-
-                    if not (hi_raw or hf_raw):
-                        continue
+                        fecha_val = "0"
 
                     hi_list = [x for x in hi_raw.split() if ":" in x and x.count(":") == 1]
                     hf_list = [x for x in hf_raw.split() if ":" in x and x.count(":") == 1]
 
+                    # Caso 1: no hay horas en ninguna columna → resultado 0
                     if not hi_list or not hf_list:
+                        registros.append({
+                            "fecha": fecha_val,
+                            "hi": 0,
+                            "hf": 0,
+                            "principal": True
+                        })
                         continue
 
-                    # Regla Daniel
+                    # Caso 2: hay horas pero no cumplen reglas de solape → resultado 0
+                    # Aquí puedes añadir tu lógica de solape; de momento marcamos como 0
+                    valido = True  # sustituir con tu regla real
+                    if not valido:
+                        registros.append({
+                            "fecha": fecha_val,
+                            "hi": 0,
+                            "hf": 0,
+                            "principal": True
+                        })
+                        continue
+
+                    # Caso 3: horas válidas → se guardan normalmente
                     principal_hi = hi_list[0]
                     principal_hf = hf_list[-1]
                     registros.append({
