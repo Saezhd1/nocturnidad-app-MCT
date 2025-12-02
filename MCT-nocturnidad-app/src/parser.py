@@ -31,6 +31,33 @@ def _find_columns(page):
 
     return {"fecha": fecha_x, "hi": hi_x, "hf": hf_x, "header_bottom": header_bottom}
 
+def _normalize_hour(h):
+    """
+    Normaliza horas especiales:
+    - '00:59' se interpreta como '24:59'
+    - Cualquier hora >= 24:XX se convierte a 00:XX (manteniendo la fecha)
+    """
+    h = h.strip()
+    if not h or ":" not in h:
+        return h
+    try:
+        hh, mm = h.split(":")
+        hh = int(hh)
+        mm = int(mm)
+    except ValueError:
+        return h
+
+    # Caso especial: 00:59 → 24:59
+    if hh == 0 and mm == 59:
+        return "24:59"
+
+    # Caso general: si hora >= 24, restamos 24
+    if hh >= 24:
+        hh = hh - 24
+        return f"{hh:02d}:{mm:02d}"
+
+    return f"{hh:02d}:{mm:02d}"
+
 def parse_pdf(file):
     registros = []
     try:
@@ -74,8 +101,8 @@ def parse_pdf(file):
                     if not (hi_raw or hf_raw):
                         continue
 
-                    hi_list = [x for x in hi_raw.split() if ":" in x and x.count(":") == 1]
-                    hf_list = [x for x in hf_raw.split() if ":" in x and x.count(":") == 1]
+                    hi_list = [_normalize_hour(x) for x in hi_raw.split() if ":" in x and x.count(":") == 1]
+                    hf_list = [_normalize_hour(x) for x in hf_raw.split() if ":" in x and x.count(":") == 1]
 
                     if not hi_list or not hf_list:
                         continue
