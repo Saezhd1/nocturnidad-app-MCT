@@ -33,6 +33,13 @@ def _minutos_nocturnos(hi_dt, hf_dt):
     return minutos
 
 def calcular_nocturnidad_por_dia(registros):
+    """
+    Calcula los minutos nocturnos y el importe por cada día a partir de los registros.
+    Cada registro debe tener: fecha, hi, hf, principal.
+    """
+    if not registros:  # si es None o lista vacía
+        return []
+
     resultados = []
     for r in registros:
         hi_dt = _parse_hhmm(r["hi"])
@@ -51,3 +58,4 @@ def calcular_nocturnidad_por_dia(registros):
             "principal": r.get("principal", True)
         })
     return resultados
+
