@@ -113,7 +113,7 @@ def parse_multiple_pdfs(files):
     """
     resultados = {}
     for f in files:
-        print(f"[parser] Procesando: {os.path.basename(f)")
+        print(f"[parser] Procesando: {os.path.basename(f)}")
         registros = parse_pdf(f)
         # Añadir origen al registro
     for r in registros:
@@ -126,4 +126,5 @@ def parse_multiple_pdfs(files):
     for r in registros[:6]:
         print("[parser] Ej:", r)
     return registros
+
 
