@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Resultados de nocturnidad</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <h1>Informe de nocturnidad</h1>
+    <p>Empleado: {{ empleado }} | Nombre: {{ nombre }}</p>
+
+    <h2>Detalle por tramos</h2>
+    <table border="1" cellpadding="4" cellspacing="0">
+        <tr>
+            <th>Archivo</th>
+            <th>Fecha</th>
+            <th>HI</th>
+            <th>HF</th>
+            <th>Minutos nocturnos</th>
+            <th>Importe (€)</th>
+        </tr>
+        {% for doc in resultados %}
+            {% for d in doc.dias %}
+                {% if d.minutos_nocturnos > 0 %}
+                <tr>
+                    <td>{{ doc.filename }}</td>
+                    <td>{{ d.fecha }}</td>
+                    <td>{{ d.hi }}</td>
+                    <td>{{ d.hf }}</td>
+                    <td style="text-align:right">{{ d.minutos_nocturnos }}</td>
+                    <td style="text-align:right">{{ d.importe }}</td>
+                </tr>
+                {% endif %}
+            {% endfor %}
+        {% endfor %}
+    </table>
+
+    <h2>Resumen mensual</h2>
+    <table border="1" cellpadding="4" cellspacing="0">
+        <tr>
+            <th>Mes/Año</th>
+            <th>Minutos</th>
+            <th>Importe (€)</th>
+            <th>Días con nocturnidad</th>
+        </tr>
+        {% for mes, datos in resumen.por_mes.items() %}
+        <tr>
+            <td>{{ mes }}</td>
+            <td style="text-align:right">{{ datos.minutos }}</td>
+            <td style="text-align:right">{{ "%.2f"|format(datos.importe) }}</td>
+            <td style="text-align:right">{{ datos.dias }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <h2>Resumen global</h2>
+    <p>Total minutos: {{ resumen.global.minutos }}</p>
+    <p>Total importe: {{ "%.2f"|format(resumen.global.importe) }}</p>
+    <p>Total días con nocturnidad: {{ resumen.global.dias }}</p>
+
+    <p><a href="{{ url_for('download') }}">Descargar informe en PDF</a></p>
+</body>
+</html>
