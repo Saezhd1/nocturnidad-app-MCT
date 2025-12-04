@@ -40,6 +40,9 @@ def _minutos_nocturnos(hi_dt, hf_dt):
         (_parse_hhmm("04:00"), _parse_hhmm("06:00")),
     ]
     for ini, fin in tramos:
+        # Ignorar tramos inválidos
+        if not ini or not fin:
+            continue
         if hi_dt < fin and hf_dt > ini:
             inter_ini = max(hi_dt, ini)
             inter_fin = min(hf_dt, fin)
@@ -71,6 +74,7 @@ def calcular_nocturnidad_por_dia(registros):
             "principal": r.get("principal", True)
         })
     return resultados
+
 
 
 
