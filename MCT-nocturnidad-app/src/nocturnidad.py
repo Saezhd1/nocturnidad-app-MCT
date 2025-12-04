@@ -59,10 +59,11 @@ def calcular_nocturnidad_por_dia(registros):
     for r in registros:
         hi_dt = _parse_hhmm(r["hi"])
         hf_dt = _parse_hhmm(r["hf"])
-        if not hi_dt or not hf_dt:
-            continue
 
-        minutos = _minutos_nocturnos(hi_dt, hf_dt)
+        minutos = 0
+        if hi_dt and hf_dt:
+            minutos = _minutos_nocturnos(hi_dt, hf_dt)
+        
         tarifa = _tarifa_por_fecha(r["fecha"])
 
         resultados.append({
@@ -74,6 +75,7 @@ def calcular_nocturnidad_por_dia(registros):
             "principal": r.get("principal", True)
         })
     return resultados
+
 
 
 
