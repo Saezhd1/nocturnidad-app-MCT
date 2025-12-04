@@ -57,33 +57,25 @@ def calcular_nocturnidad_por_dia(registros):
     """
     resultados = []
     for r in registros:
-        hi_dt = _parse_hhmm(r["hi"])
-        hf_dt = _parse_hhmm(r["hf"])
+        hi_dt = _parse_hhmm(r["hi"]) if r.get("hi") else None
+        hf_dt = _parse_hhmm(r["hf"]) if r.get("hf") else None
 
         minutos = 0
         if hi_dt and hf_dt:
             minutos = _minutos_nocturnos(hi_dt, hf_dt)
-        
+
         tarifa = _tarifa_por_fecha(r["fecha"])
 
         resultados.append({
-            "fecha": r["fecha"],   # se mantiene la fecha original
-            "hi": r["hi"],
-            "hf": r["hf"],
+            "fecha": r["fecha"],   # siempre la fecha original del PDF
+            "hi": r.get("hi", ""), # si está vacío, se muestra vacío
+            "hf": r.get("hf", ""),
             "minutos_nocturnos": minutos,
             "importe": f"{minutos * tarifa:.2f}",
             "principal": r.get("principal", True)
-            "hi_dt": hi_dt         # guardamos datetime para ordenar
         })
-    
-    # Ordenar primero por fecha y luego por hora de inicio
-    resultados.sort(key=lambda d: (d["fecha"], d["hi_dt"] or datetime.min))
+
+    # Ordenar por fecha y hora de inicio (si existe)
+    resultados.sort(key=lambda d: (d["fecha"], _parse_hhmm(d["hi"]) or datetime.min))
     return resultados
-
-
-
-
-
-
-
-
+    
